@@ -1,0 +1,4 @@
+gabriel 18 1.79
+Luiz 18 1.83
+Arthur 18 1.75
+Gabriela 17 1.65

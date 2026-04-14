@@ -22,7 +22,7 @@ typedef struct {
     Document *docs;        // vetor dinâmico de documentos
     int count;             // número de documentos
     
-} Library;d
+} Library;
 
 // Funções que voce deve implementar em gbv.c
 int gbv_create(const char *filename);
@@ -31,7 +31,7 @@ int gbv_open(Library *lib, const char *filename);
 
 int gbv_add(Library *lib, const char *archive, const char *docname);
 
-int gbv_remove(Library *lib, const char *docname);
+int gbv_remove(Library *lib, const char *docname, const char *filename);
 
 int gbv_list(const Library *lib);
 

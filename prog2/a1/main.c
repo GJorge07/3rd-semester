@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     else if (strcmp(opcao, "-r") == 0) {
         
         for (int i = 3; i < argc; i++) 
-            gbv_remove(&lib, argv[i]);
+            gbv_remove(&lib, argv[i],biblioteca);
         
     } else if (strcmp(opcao, "-l") == 0) {
         

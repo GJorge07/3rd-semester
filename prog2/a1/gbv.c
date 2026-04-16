@@ -218,7 +218,7 @@ int gbv_list(const Library *lib) {
 //falta mudar parametros no main e no .h
 int gbv_view(const Library *lib, const char *docname, const char *filename) {
 
-    int i,lidos,pos = 0;
+    int i,pos = 0;
     long offset,size;
     long max_blocos;
     size_t faltando, to_read;  //bytes que faltam ler
@@ -250,9 +250,9 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
                         break;
                     }
                 } else if (x == 'P') {
-                    if (pos > 0)
+                    if (pos > 0) {
                         pos--;
-                    else {
+                    } else {
                         printf("Você está no primeiro bloco\n");
                         scanf(" %c", &x);
                         continue;
@@ -264,7 +264,8 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
                 }
 
                 //  Imprime o bloco CORRETO
-                memset(buffer, 0, BUFFER_SIZE + 1);   //limpa o buffer
+                memset(buffer, 0, BUFFER_SIZE + 1);   //limpa o buffer                
+                
                 fseek(file, offset + (pos * BUFFER_SIZE), SEEK_SET);    //??
 
                 faltando = size - (pos * BUFFER_SIZE);

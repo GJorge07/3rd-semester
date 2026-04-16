@@ -241,40 +241,55 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
             max_blocos = (size + BUFFER_SIZE - 1) / BUFFER_SIZE;   //??
 
             printf("Digite N para ir para o próximo bloco, P para ir ao bloco anterior ou Q para sair\n");
-            scanf(" %c",&x);
+            x = 'N';  //Começa com N pra imprimir o primeiro bloco
             while (x != 'Q') {
 
-                memset(buffer, 0, BUFFER_SIZE + 1);  //limpa o buffer (???)
+                if (x == 'N') {
+                    if (pos >= max_blocos) {
+                        printf("Fim do documento\n");
+                        break;
+                    }
+                } else if (x == 'P') {
+                    if (pos > 0)
+                        pos--;
+                    else {
+                        printf("Você está no primeiro bloco\n");
+                        scanf(" %c", &x);
+                        continue;
+                    }
+                } else {
+                    printf("Operação inválida\n");
+                    scanf(" %c", &x);
+                    continue;
+                }
 
+                //  Imprime o bloco CORRETO
+                memset(buffer, 0, BUFFER_SIZE + 1);   //limpa o buffer
                 fseek(file, offset + (pos * BUFFER_SIZE), SEEK_SET);    //??
 
-                faltando = size - (pos *BUFFER_SIZE);
-                if (faltando <=0) {
+                faltando = size - (pos * BUFFER_SIZE);
+                if (faltando <= 0) {
                     printf("Fim do documento\n");
                     break;
                 }
 
-                to_read = (faltando > BUFFER_SIZE)? BUFFER_SIZE : faltando;
-
-                lidos = fread(buffer, 1,to_read, file);
+                to_read = (faltando > BUFFER_SIZE) ? BUFFER_SIZE : faltando;
+                size_t lidos = fread(buffer, 1, to_read, file);
+                
                 if(lidos > 0) {
-
-                    fwrite(buffer, 1, lidos, stdout);  // ✅ Muda aqui
+                    fwrite(buffer, 1, lidos, stdout);
                     printf("\n");
-                    scanf(" %c",&x);
-                    if (x == 'N' && pos < max_blocos  -1 )
+                    
+                    if (x == 'N')  // Só incrementa DEPOIS de imprimir
                         pos++;
-                    else if (x == 'P' && pos > 0)
-                        pos--;
-
-
-                    }
-                else {
-                    printf ("Nao há arquivos\n");
+                } else {
+                    printf("Erro ao ler\n");
                     break;
                 }
-                    
-                }
+
+                scanf(" %c", &x);
+            }
+            
             fclose(file);
             return 0;
         }

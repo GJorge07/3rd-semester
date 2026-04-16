@@ -71,7 +71,7 @@ int gbv_open(Library *lib, const char *filename) {
 //dificuldade em criar novo documento
 int gbv_add(Library *lib, const char *archive, const char *docname) {
 
-    int lidos;
+    int lidos,i;
     char buffer[BUFFER_SIZE];   /*espaço temporário pra copiar pedaços do arquivo*/
     long novo_offset;    /*guarda onde o novo arquivo será escrito dentro do .gbv*/
 
@@ -83,6 +83,16 @@ int gbv_add(Library *lib, const char *archive, const char *docname) {
 
     SuperBlock sb;
     Document doc;
+
+    if(strcmp(archive,docname) == 0) 
+        return 1;
+
+    for(i =0; i < lib->count; i++) {
+
+        if(strcmp(lib->docs[i].name,docname) == 0)
+            return 1;
+    }
+    
 
     if(!fread(&sb,sizeof(SuperBlock),1,filee)) {   //le superbloco do arquivo
         fclose(file);
@@ -221,7 +231,7 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
     int i,pos = 0;
     long offset,size;
     long max_blocos;
-    size_t faltando, to_read;  //bytes que faltam ler
+    size_t faltando, para_ler;  //bytes que faltam ler
     char buffer[BUFFER_SIZE + 1],x;
 
     if(!lib || lib->count == 0)
@@ -238,7 +248,7 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
             if (!file)
                 return 1;
 
-            max_blocos = (size + BUFFER_SIZE - 1) / BUFFER_SIZE;   //??
+            max_blocos = (size + BUFFER_SIZE - 1) / BUFFER_SIZE;  
 
             printf("Digite N para ir para o próximo bloco, P para ir ao bloco anterior ou Q para sair\n");
             x = 'N';  //Começa com N pra imprimir o primeiro bloco
@@ -266,7 +276,7 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
                 //  Imprime o bloco CORRETO
                 memset(buffer, 0, BUFFER_SIZE + 1);   //limpa o buffer                
                 
-                fseek(file, offset + (pos * BUFFER_SIZE), SEEK_SET);    //??
+                fseek(file, offset + (pos * BUFFER_SIZE), SEEK_SET);    
 
                 faltando = size - (pos * BUFFER_SIZE);
                 if (faltando <= 0) {
@@ -274,8 +284,8 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
                     break;
                 }
 
-                to_read = (faltando > BUFFER_SIZE) ? BUFFER_SIZE : faltando;
-                size_t lidos = fread(buffer, 1, to_read, file);
+                para_ler = (faltando > BUFFER_SIZE) ? BUFFER_SIZE : faltando;
+                size_t lidos = fread(buffer, 1, para_ler, file);
                 
                 if(lidos > 0) {
                     fwrite(buffer, 1, lidos, stdout);

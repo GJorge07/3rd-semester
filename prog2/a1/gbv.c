@@ -1,38 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 
 #include "gbv.h"
-
-//coloquei aq só pra ajudar a ver, TIRAR DEPOIS
-#define MAX_NAME 256
-#define BUFFER_SIZE 512   // tamanho fixo do buffer em bytes
-
-// Estrutura de metadados de cada documento
-typedef struct {
-
-    char name[MAX_NAME];   // nome do documento
-    long size;             // tamanho em bytes
-    time_t date;           // data de inserção
-    long offset;           // posição no container
-
-} Document;
-
-// Estrutura que representa a biblioteca (diretório em memória)
-typedef struct {
-
-    Document *docs;        // vetor dinâmico de documentos
-    int count;             // número de documentos
-    
-} Library;
-
-
-typedef struct {
-
-    int num_docs;
-    long offset_dir
-
-}SuperBlock;
-
+#include "util.h"
+//esquecendo de fclose
 //pq usa &sb e nao só sb no fwrite (dificuldade 1)??
 //qual a utilidade do superbloco(dificuldade 2)??
 //tava fazendo sb.offset_dir receber NULL(dificuldade 3)
@@ -61,39 +34,36 @@ int gbv_create(const char *filename) {
 //diferença de sb.num_docs pra count->library(dificuldade 4)?
 int gbv_open(Library *lib, const char *filename) {
 
-    FILE *file = fopen(filename,"rb");             /*le o arquivo*/
-
+    FILE *file = fopen(filename,"rb");
     SuperBlock sb;
 
     if (!file)
         return 1;
 
-    if(!fread(&sb,sizeof(SuperBlock),1,file))         //le superbloco do arquivo
+    if (fread(&sb,sizeof(SuperBlock),1,file) != 1) {
+        fclose(file);
         return 1;
+    }
 
-    lib->count = sb.num_docs;      /*atualiza num de docs da library*/
+    lib->count = sb.num_docs;
+    
     if (sb.num_docs > 0) {
+        lib->docs = malloc(sb.num_docs * sizeof(Document));  
 
-        lib->docs = malloc(sb.num_docs * sizeof(Document));    /*aloca espaço p todos os documentos*/
-
-        if (!lib->docs)     /*se a alocação falhar*/
+        if (!lib->docs)
             return 1;
 
-        fseek(file, sb.offset_dir, SEEK_SET);    /*vai pra onde começa o dir*/ 
-        if(!fread(lib->docs,sizeof(Document),sb.num_docs,file))  {   /*preenche lib->docs*/
-            free(lib->docs);
+        fseek(file, sb.offset_dir, SEEK_SET);
+        if (fread(lib->docs,sizeof(Document),sb.num_docs,file) != sb.num_docs) { 
+            fclose(file);
             return 1;
         }
-
-        fclose(file);
     }
     else
         lib->docs = NULL;
 
     fclose(file);
-
     return 0;
-
 }
 
 
@@ -101,10 +71,9 @@ int gbv_open(Library *lib, const char *filename) {
 //dificuldade em criar novo documento
 int gbv_add(Library *lib, const char *archive, const char *docname) {
 
-    int lidos,i;
+    int lidos;
     char buffer[BUFFER_SIZE];   /*espaço temporário pra copiar pedaços do arquivo*/
     long novo_offset;    /*guarda onde o novo arquivo será escrito dentro do .gbv*/
-    char data[100];
 
     FILE *file = fopen(docname,"rb");          //abre o arquivo externo (o que você quer adicionar)
     FILE *filee = fopen(archive,"rb+");        //abre gbv(arquivo) onde iremos escrever
@@ -115,8 +84,11 @@ int gbv_add(Library *lib, const char *archive, const char *docname) {
     SuperBlock sb;
     Document doc;
 
-    if(!fread(&sb,sizeof(SuperBlock),1,filee))         //le superbloco do arquivo
+    if(!fread(&sb,sizeof(SuperBlock),1,filee)) {   //le superbloco do arquivo
+        fclose(file);
+        fclose(filee);
         return 1;
+    }
 
     novo_offset = sb.offset_dir;   /*novo_offset recebe o começo do dir*/
  
@@ -189,8 +161,12 @@ int gbv_remove(Library *lib, const char *docname, const char *filename) {
             if (!file)
                 return 1;
         
-            if(!fread(&sb,sizeof(SuperBlock),1,file))         /*le superbloco do arquivo, mostra oq tem la*/
+            if(!fread(&sb,sizeof(SuperBlock),1,file)) {         /*le superbloco do arquivo, mostra oq tem la*/
+
+                fclose(file);
                 return 1;
+
+            }
                 
             sb.num_docs = lib->count;             /*atualiza num docs, vai pro começo e atualiza os ARQUIVOS*/
             fseek(file, 0, SEEK_SET);
@@ -240,12 +216,12 @@ int gbv_list(const Library *lib) {
 
 //usa document, superblock n, pq??
 //falta mudar parametros no main e no .h
-//tem q arrumar ainda
 int gbv_view(const Library *lib, const char *docname, const char *filename) {
 
     int i,lidos,pos = 0;
     long offset,size;
     long max_blocos;
+    size_t faltando, to_read;  //bytes que faltam ler
     char buffer[BUFFER_SIZE + 1],x;
 
     if(!lib || lib->count == 0)
@@ -264,26 +240,38 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
 
             max_blocos = (size + BUFFER_SIZE - 1) / BUFFER_SIZE;   //??
 
-            printf("Digite N para ir para o próximo bloco, P para ir ao bloco anterior ou Q para sair");
+            printf("Digite N para ir para o próximo bloco, P para ir ao bloco anterior ou Q para sair\n");
             scanf(" %c",&x);
             while (x != 'Q') {
 
-                fseek(file, offset + (pos * BUFFER_SIZE), SEEK_SET);    //??
-                lidos = fread(buffer, 1, BUFFER_SIZE, file);
-                if(lidos) {
+                memset(buffer, 0, BUFFER_SIZE + 1);  //limpa o buffer (???)
 
-                    buffer[lidos] = '\0';   //??
-                    printf("%s", buffer);
+                fseek(file, offset + (pos * BUFFER_SIZE), SEEK_SET);    //??
+
+                faltando = size - (pos *BUFFER_SIZE);
+                if (faltando <=0) {
+                    printf("Fim do documento\n");
+                    break;
+                }
+
+                to_read = (faltando > BUFFER_SIZE)? BUFFER_SIZE : faltando;
+
+                lidos = fread(buffer, 1,to_read, file);
+                if(lidos > 0) {
+
+                    fwrite(buffer, 1, lidos, stdout);  // ✅ Muda aqui
+                    printf("\n");
                     scanf(" %c",&x);
                     if (x == 'N' && pos < max_blocos  -1 )
                         pos++;
                     else if (x == 'P' && pos > 0)
                         pos--;
 
+
                     }
                 else {
-                    printf ("Nao há arquivos");
-                    return 0;
+                    printf ("Nao há arquivos\n");
+                    break;
                 }
                     
                 }

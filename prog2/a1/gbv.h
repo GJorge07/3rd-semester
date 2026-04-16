@@ -24,6 +24,13 @@ typedef struct {
     
 } Library;
 
+typedef struct {
+
+    int num_docs;
+    long offset_dir;
+
+} SuperBlock;
+
 // Funções que voce deve implementar em gbv.c
 int gbv_create(const char *filename);
 
@@ -35,7 +42,7 @@ int gbv_remove(Library *lib, const char *docname, const char *filename);
 
 int gbv_list(const Library *lib);
 
-int gbv_view(const Library *lib, const char *docname);
+int gbv_view(const Library *lib, const char *docname, const char *filename);
 
 int gbv_order(Library *lib, const char *archive, const char *criteria);
 

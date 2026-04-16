@@ -96,9 +96,73 @@ int gbv_open(Library *lib, const char *filename) {
 
 }
 
+
+//adiciona um novo arquivo gbv sobrescrevendo o diretório, dai empurrando tudo pra trás e trazendo o dir novamente, já que esta em memoria
+//dificuldade em criar novo documento
 int gbv_add(Library *lib, const char *archive, const char *docname) {
 
+    int lidos,i;
+    char buffer[BUFFER_SIZE];   /*espaço temporário pra copiar pedaços do arquivo*/
+    long novo_offset;    /*guarda onde o novo arquivo será escrito dentro do .gbv*/
+    char data[100];
 
+    FILE *file = fopen(docname,"rb");          //abre o arquivo externo (o que você quer adicionar)
+    FILE *filee = fopen(archive,"rb+");        //abre gbv(arquivo) onde iremos escrever
+
+    if (!file || ! filee)
+        return 1;
+
+    SuperBlock sb;
+    Document doc;
+
+    if(!fread(&sb,sizeof(SuperBlock),1,filee))         //le superbloco do arquivo
+        return 1;
+
+    novo_offset = sb.offset_dir;   /*novo_offset recebe o começo do dir*/
+ 
+    doc.size = 0;
+    fseek(filee,novo_offset,SEEK_SET);
+    lidos = fread(buffer, 1, BUFFER_SIZE, file);
+
+    while (lidos > 0) {       /*guarda quantos bytes foram lidos do arquivo externo*/
+
+        fwrite(buffer,1,lidos,filee);
+        doc.size = doc.size + lidos;
+        lidos = fread(buffer, 1, BUFFER_SIZE, file);
+
+    }
+
+    //cria o documento
+    doc.offset = novo_offset;   //onde começou no .gbv
+    doc.date = time(NULL);   //data atual
+    strcpy(doc.name, docname);  //copia nome do arquivo
+
+    //coloca o documento na library
+    Document *temp = realloc(lib->docs, (lib->count + 1) * sizeof(Document)); // aumenta o espaço pra mais um doc
+
+    if (!temp)
+        return 1;
+
+    lib->docs = temp; 
+ 
+    lib->docs[lib->count] = doc;       //coloca elemento novo no final
+    lib->count++;
+
+
+    //
+    sb.num_docs = lib->count;
+    sb.offset_dir = novo_offset + doc.size;
+
+    fseek(filee,sb.offset_dir,SEEK_SET);
+    fwrite(lib->docs,sizeof(Document),lib->count,filee);
+
+    fseek(filee, 0, SEEK_SET);
+    fwrite(&sb,sizeof(SuperBlock),1,filee);
+
+    fclose(file);
+    fclose(filee);
+
+    return 0;
 }
 
 //precisei adicionar um novo parametro (filename) pra att o arquivo(dificuldade 6)
@@ -174,12 +238,59 @@ int gbv_list(const Library *lib) {
     return 0;
 }
 
-int gbv_view(const Library *lib, const char *docname) {
+//usa document, superblock n, pq??
+//falta mudar parametros no main e no .h
+//tem q arrumar ainda
+int gbv_view(const Library *lib, const char *docname, const char *filename) {
 
+    int i,lidos,pos = 0;
+    long offset,size;
+    long max_blocos;
+    char buffer[BUFFER_SIZE + 1],x;
 
+    if(!lib || lib->count == 0)
+        return 1;
 
+    for(i = 0; i < lib->count; i++) {     /*percorre os documentos*/
 
+        if(strcmp(lib->docs[i].name,docname) == 0) {
 
+            offset = lib->docs[i].offset;
+            size = lib->docs[i].size;
 
+            FILE *file = fopen(filename,"rb");
+            if (!file)
+                return 1;
+
+            max_blocos = (size + BUFFER_SIZE - 1) / BUFFER_SIZE;   //??
+
+            printf("Digite N para ir para o próximo bloco, P para ir ao bloco anterior ou Q para sair");
+            scanf(" %c",&x);
+            while (x != 'Q') {
+
+                fseek(file, offset + (pos * BUFFER_SIZE), SEEK_SET);    //??
+                lidos = fread(buffer, 1, BUFFER_SIZE, file);
+                if(lidos) {
+
+                    buffer[lidos] = '\0';   //??
+                    printf("%s", buffer);
+                    scanf(" %c",&x);
+                    if (x == 'N' && pos < max_blocos  -1 )
+                        pos++;
+                    else if (x == 'P' && pos > 0)
+                        pos--;
+
+                    }
+                else {
+                    printf ("Nao há arquivos");
+                    return 0;
+                }
+                    
+                }
+            fclose(file);
+            return 0;
+        }
+    }
+    return 1;
 }
 

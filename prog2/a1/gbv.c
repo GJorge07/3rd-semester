@@ -5,10 +5,8 @@
 
 #include "gbv.h"
 #include "util.h"
-//esquecendo de fclose
-//pq usa &sb e nao só sb no fwrite (dificuldade 1)??
-//qual a utilidade do superbloco(dificuldade 2)??
-//tava fazendo sb.offset_dir receber NULL(dificuldade 3)
+
+
 int gbv_create(const char *filename) {
 
     FILE *file = fopen (filename,"wb");
@@ -30,8 +28,6 @@ int gbv_create(const char *filename) {
 }
 
 //Abre o arquivo .gbv, lê o índice (diretório), vai ate o dir e carrega todos os documentos pra memória (Library)
-//depois dessa função, temos lib->count e lib>docs atualizados
-//diferença de sb.num_docs pra count->library(dificuldade 4)?
 int gbv_open(Library *lib, const char *filename) {
 
     FILE *file = fopen(filename,"rb");
@@ -68,12 +64,11 @@ int gbv_open(Library *lib, const char *filename) {
 
 
 //adiciona um novo arquivo gbv sobrescrevendo o diretório, dai empurrando tudo pra trás e trazendo o dir novamente, já que esta em memoria
-//dificuldade em criar novo documento
 int gbv_add(Library *lib, const char *archive, const char *docname) {
 
     int lidos,i;
     char buffer[BUFFER_SIZE];   /*espaço temporário pra copiar pedaços do arquivo*/
-    long novo_offset;    /*guarda onde o novo arquivo será escrito dentro do .gbv*/
+    long novo_offset;           /*guarda onde o novo arquivo será escrito dentro do .gbv*/
 
     FILE *file = fopen(docname,"rb");          //abre o arquivo externo (o que você quer adicionar)
     FILE *filee = fopen(archive,"rb+");        //abre gbv(arquivo) onde iremos escrever
@@ -87,10 +82,13 @@ int gbv_add(Library *lib, const char *archive, const char *docname) {
     if(strcmp(archive,docname) == 0) 
         return 1;
 
-    for(i =0; i < lib->count; i++) {
-
-        if(strcmp(lib->docs[i].name,docname) == 0)
-            return 1;
+    // Remove documento existente com mesmo nome
+    for(i = 0; i < lib->count; i++) {
+        
+        if(strcmp(lib->docs[i].name,docname) == 0) {
+            gbv_remove(lib, docname, archive);
+            break;
+        }
     }
     
 
@@ -131,7 +129,7 @@ int gbv_add(Library *lib, const char *archive, const char *docname) {
     lib->count++;
 
 
-    //
+    
     sb.num_docs = lib->count;
     sb.offset_dir = novo_offset + doc.size;
 
@@ -147,8 +145,7 @@ int gbv_add(Library *lib, const char *archive, const char *docname) {
     return 0;
 }
 
-//precisei adicionar um novo parametro (filename) pra att o arquivo(dificuldade 6)
-//pq faz fopen pra mexer em arquivo mas pra mexer em documento nao (dificuldade 7)
+
 int gbv_remove(Library *lib, const char *docname, const char *filename) {
 
     int i,j;
@@ -194,9 +191,8 @@ int gbv_remove(Library *lib, const char *docname, const char *filename) {
 }
 
 
-//dificuldade 5-> fomat_date
+
 //lista todos os documentos e suas respectivas informações
-//dificuldade 6 -> tava usando offset ao inves de count no laço (offset é d arquivo e count de array )
 int gbv_list(const Library *lib) {
 
     int i;
@@ -224,8 +220,8 @@ int gbv_list(const Library *lib) {
     return 0;
 }
 
-//usa document, superblock n, pq??
-//falta mudar parametros no main e no .h
+
+
 int gbv_view(const Library *lib, const char *docname, const char *filename) {
 
     int i,pos = 0;

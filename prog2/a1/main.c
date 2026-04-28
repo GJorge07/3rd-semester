@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "gbv.h"
 
 int main(int argc, char *argv[]) {
@@ -67,13 +68,14 @@ int main(int argc, char *argv[]) {
         if (gbv_view(&lib, argv[3], biblioteca) != 0)
             printf("Não foi possível visualizar os documentos. %s.\n", argv[3]);
 
-    } 
+    }
+    
      else {
 
         printf("Opção inválida.\n");
 
     }
-
+    free(lib.docs);
     return 0;
 }
 

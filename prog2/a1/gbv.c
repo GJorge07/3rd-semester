@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 
 #include "gbv.h"
@@ -14,20 +15,20 @@ int gbv_create(const char *filename) {
     
     if (file) {
 
-        sb.num_docs = 0;                   /*inicia com 0 docs*/
-        sb.offset_dir = sizeof(SuperBlock); /*define onde começa dir*/
+        memset(&sb, 0, sizeof(SuperBlock));     /*inicializa com zeros*/
+        sb.num_docs = 0;                        /*inicia com 0 docs*/
+        sb.offset_dir = sizeof(SuperBlock);     /*define onde começa dir*/
         fwrite(&sb,sizeof(SuperBlock),1,file); /*escreve num de docs e offset do dir no arquivo*/
         fclose(file);
         return 0;
 
     }
     else 
-
-    return 1;
+        return 1;
     
 }
 
-//Abre o arquivo .gbv, lê o índice (diretório), vai ate o dir e carrega todos os documentos pra memória (Library)
+
 int gbv_open(Library *lib, const char *filename) {
 
     FILE *file = fopen(filename,"rb");
@@ -63,15 +64,14 @@ int gbv_open(Library *lib, const char *filename) {
 }
 
 
-//adiciona um novo arquivo gbv sobrescrevendo o diretório, dai empurrando tudo pra trás e trazendo o dir novamente, já que esta em memoria
 int gbv_add(Library *lib, const char *archive, const char *docname) {
 
     int lidos,i;
     char buffer[BUFFER_SIZE];   /*espaço temporário pra copiar pedaços do arquivo*/
     long novo_offset;           /*guarda onde o novo arquivo será escrito dentro do .gbv*/
 
-    FILE *file = fopen(docname,"rb");          //abre o arquivo externo (o que você quer adicionar)
-    FILE *filee = fopen(archive,"rb+");        //abre gbv(arquivo) onde iremos escrever
+    FILE *file = fopen(docname,"rb");          /*abre o arquivo externo (o que queremos adicionar)*/
+    FILE *filee = fopen(archive,"rb+");        /*abre gbv(arquivo) onde iremos escrever*/
 
     if (!file || ! filee)
         return 1;
@@ -82,7 +82,7 @@ int gbv_add(Library *lib, const char *archive, const char *docname) {
     if(strcmp(archive,docname) == 0) 
         return 1;
 
-    // Remove documento existente com mesmo nome
+    /*remove documento existente com mesmo nome*/
     for(i = 0; i < lib->count; i++) {
         
         if(strcmp(lib->docs[i].name,docname) == 0) {
@@ -92,7 +92,7 @@ int gbv_add(Library *lib, const char *archive, const char *docname) {
     }
     
 
-    if(!fread(&sb,sizeof(SuperBlock),1,filee)) {   //le superbloco do arquivo
+    if(!fread(&sb,sizeof(SuperBlock),1,filee)) {   /*le superbloco do arquivo*/
         fclose(file);
         fclose(filee);
         return 1;
@@ -112,20 +112,20 @@ int gbv_add(Library *lib, const char *archive, const char *docname) {
 
     }
 
-    //cria o documento
-    doc.offset = novo_offset;   //onde começou no .gbv
-    doc.date = time(NULL);   //data atual
-    strcpy(doc.name, docname);  //copia nome do arquivo
+    /*cria o documento*/
+    doc.offset = novo_offset;   
+    doc.date = time(NULL);   
+    strcpy(doc.name, docname);  
 
-    //coloca o documento na library
-    Document *temp = realloc(lib->docs, (lib->count + 1) * sizeof(Document)); // aumenta o espaço pra mais um doc
+    /*coloca o documento na library*/
+    Document *temp = realloc(lib->docs, (lib->count + 1) * sizeof(Document)); /*aumenta o espaço pra mais um doc*/
 
     if (!temp)
         return 1;
 
     lib->docs = temp; 
  
-    lib->docs[lib->count] = doc;       //coloca elemento novo no final
+    lib->docs[lib->count] = doc;       /*coloca elemento novo no final*/
     lib->count++;
 
 
@@ -190,9 +190,6 @@ int gbv_remove(Library *lib, const char *docname, const char *filename) {
     return 1;
 }
 
-
-
-//lista todos os documentos e suas respectivas informações
 int gbv_list(const Library *lib) {
 
     int i;
@@ -227,7 +224,7 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
     int i,pos = 0;
     long offset,size;
     long max_blocos;
-    size_t faltando, para_ler;  //bytes que faltam ler
+    size_t remaining, to_read;  /*bytes que faltam ler*/
     char buffer[BUFFER_SIZE + 1],x;
 
     if(!lib || lib->count == 0)
@@ -247,7 +244,7 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
             max_blocos = (size + BUFFER_SIZE - 1) / BUFFER_SIZE;  
 
             printf("Digite N para ir para o próximo bloco, P para ir ao bloco anterior ou Q para sair\n");
-            x = 'N';  //Começa com N pra imprimir o primeiro bloco
+            x = 'N';  /*Começa com N pra imprimir o primeiro bloco*/
             while (x != 'Q') {
 
                 if (x == 'N') {
@@ -269,25 +266,24 @@ int gbv_view(const Library *lib, const char *docname, const char *filename) {
                     continue;
                 }
 
-                //  Imprime o bloco CORRETO
-                memset(buffer, 0, BUFFER_SIZE + 1);   //limpa o buffer                
+                memset(buffer, 0, BUFFER_SIZE + 1);   /*limpa o buffer*/                
                 
                 fseek(file, offset + (pos * BUFFER_SIZE), SEEK_SET);    
 
-                faltando = size - (pos * BUFFER_SIZE);
-                if (faltando <= 0) {
+                remaining = size - (pos * BUFFER_SIZE);
+                if (remaining <= 0) {
                     printf("Fim do documento\n");
                     break;
                 }
 
-                para_ler = (faltando > BUFFER_SIZE) ? BUFFER_SIZE : faltando;
-                size_t lidos = fread(buffer, 1, para_ler, file);
+                to_read = (remaining > BUFFER_SIZE) ? BUFFER_SIZE : remaining;
+                size_t lidos = fread(buffer, 1, to_read, file);
                 
                 if(lidos > 0) {
                     fwrite(buffer, 1, lidos, stdout);
                     printf("\n");
                     
-                    if (x == 'N')  // Só incrementa DEPOIS de imprimir
+                    if (x == 'N') 
                         pos++;
                 } else {
                     printf("Erro ao ler\n");

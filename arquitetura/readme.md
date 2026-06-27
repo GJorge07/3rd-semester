@@ -1,0 +1,1 @@
+Computer Architeture -> Monocicle, Multicicle, Pipeline, Hazards, Memories... processors in general (hardware)

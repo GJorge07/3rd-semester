@@ -1,1 +1,1 @@
-//colocar uma descrição da matéria
+Exercicies for competitive programming

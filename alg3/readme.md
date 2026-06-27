@@ -1,4 +1,4 @@
-//colocar uma descrição da materia aqui
+Algorithms and data structures III -> trees, hashing, huffman code...
 
 
 

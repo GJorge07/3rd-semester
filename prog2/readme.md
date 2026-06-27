@@ -1,0 +1,1 @@
+Programming II - binary and texts archives; allegro library; more definitions of programming logics

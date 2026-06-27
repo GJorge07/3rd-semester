@@ -1,0 +1,1 @@
+int gbv_copia(const Library *lib, const char *docname, const char *origfile, const char *newfile);
